@@ -2,16 +2,17 @@
 
 namespace App\Controller;
 
+use App\Repository\ApplicationRepository;
+
 use App\Entity\Application;
 use App\Form\ApplicationType;
 use App\Formatter\ApiResponseFormatter;
-use App\Repository\ApplicationRepository;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 
 #[Route('/api/applications')]
 final class ApplicationController extends AbstractController
@@ -50,7 +51,7 @@ final class ApplicationController extends AbstractController
         $data = json_decode($request->getContent(), true);
         if(!$data){
             return $this->apiResponseFormatter
-                ->withMessage('Invalid request')
+                ->withMessage('invalid request')
                 ->withStatus(Response::HTTP_BAD_REQUEST)
                 ->response();
         }
@@ -119,7 +120,7 @@ final class ApplicationController extends AbstractController
 
         if(!$request->get('id') || (int)$request->get('id') !== $application->getId()){
             return $this->apiResponseFormatter
-                ->withMessage('Invalid request')
+                ->withMessage('Invalid Rquest')
                 ->withStatus(Response::HTTP_BAD_REQUEST)
                 ->response();
         }

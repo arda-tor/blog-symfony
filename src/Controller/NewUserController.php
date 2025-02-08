@@ -6,15 +6,15 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Exception\UserNotFoundException;
-use App\Formatter\ApiResponseFormatter;
+use Symfony\Component\Routing\Attribute\Route;
 use App\Repository\UserRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
-use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use App\Formatter\ApiResponseFormatter;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/api')]
@@ -33,7 +33,7 @@ class NewUserController extends AbstractController
         methods: ['GET'])
     ]
     #[IsGranted('ROLE_ADMIN',
-        message: 'You are not allowed to access to this function.')]
+        message: 'you re not allowed to access to this function')]
     public function index(): JsonResponse
     {
         $users = $this->userRepository->findAll();

@@ -1,69 +1,78 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller;
 
-use App\Formatter\ApiResponseFormatter;
-use App\Repository\UserRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use App\Repository\UserRepository;
+use App\Formatter\ApiResponseFormatter;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api')]
-class UserController extends AbstractController
+class ResetPasswordController extends AbstractController
 {
+
     public function __construct(
-        private UserRepository $UserRepository,
-        private ApiResponseFormatter $apiResponseFormatter
+        private ApiResponseFormatter        $apiResponseFormatter,
+        private UserRepository              $userRepository,
+        private MailerInterface             $mailer,
+        private UserPasswordHasherInterface $passwordHasher
     )
     {
+
     }
 
-    #[Route('/users2',
-        name: 'app_user2',
-        methods: ['GET'])
+    #[Route('/reset-password',
+        name: 'reset_password',
+        methods: ['POST'])
     ]
-    public function index(): Response
+    public function index(Request $request): JsonResponse
     {
-        $users = $this->UserRepository->findAll();
+        $requestData = json_decode($request->getContent(), true);
 
-        $transformedUsers = [];
-        foreach ($users as $user) {
-            $transformedUsers[] = $user->toArray();
+        $user = $this->userRepository->findOneBy(['email' => $requestData['email']]);
+        $newPassword = $this->generatePassword();
+
+        if (!$user) {
+            return $this->apiResponseFormatter
+                ->withMessage('User not found')
+                ->response();
+        }
+
+        if (!empty($newPassword)) {
+            $hashedPassword = $this->passwordHasher->hashPassword($user, $newPassword);
+            $user->setPassword($hashedPassword);
+
+            $this->userRepository->save($user);
+            $this->sendEmail($requestData['email'], $newPassword);
         }
 
         return $this->apiResponseFormatter
-            ->withData($transformedUsers)
-            ->response();
-        }
-
-    #[Route('/users2/{id}', name: 'app_user_show2', methods: ['GET'])]
-    public function show(int $id){
-        $user = $this->UserRepository->findOneBy(['id' => $id]);
-
-        return $this->apiResponseFormatter
-            ->withData($user->toArray())
+            ->withMessage('Reset password')
             ->response();
     }
 
-    #[Route('/users2', name: 'create_user2', methods: ['POST'])]
-    public function create(Request $request): JsonResponse
+    public function generatePassword(int $lenght = 12): string
     {
-        dd($request->getContent());
-       // return new JsonResponse();
+        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        return substr(str_shuffle($characters), 0, $lenght);
     }
 
-    #[Route('/users2', name: 'update_user2', methods: ['PATCH'])]
-    public function update(int $id): JsonResponse
+    public function sendEmail(string $email, string $newPassword): void
     {
-        return new JsonResponse();
-    }
+        $email = (new Email())
+            ->from('test_account@craftertechnologies.pl')
+            ->to($email)
+            ->subject('New password')
+            ->text('Your new password is: ' . $newPassword)
+            ->html('<p>Your new password is: ' . $newPassword . '</p>');
 
-    #[Route('/users2', name: 'delete_user2', methods: ['DELETE'])]
-    public function delete(int $id): JsonResponse
-    {
-        return new JsonResponse();
+        $this->mailer->send($email);
     }
 }

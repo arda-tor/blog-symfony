@@ -2,95 +2,135 @@
 
 namespace App\Controller;
 
-use App\Entity\Invoice;
-use App\Formatter\ApiResponseFormatter;
-use App\Repository\InvoiceRepository;
-use App\Repository\UserRepository;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
+use App\Repository\ApplicationRepository;
 
-#[Route('/api/invoices')]
-class InvoiceController extends AbstractController
+use App\Entity\Application;
+use App\Form\ApplicationType;
+use App\Formatter\ApiResponseFormatter;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
+
+#[Route('/api/applications')]
+final class ApplicationController extends AbstractController
 {
-    public function __construct(
-        private ApiResponseFormatter $apiResponseFormatter,
-        private EntityManagerInterface $entityManager,
-        private InvoiceRepository $invoiceRepository,
-        private UserRepository $UserRepository
-    )
+    public function __construct(private readonly ApiResponseFormatter $apiResponseFormatter)
     {
+    }
+
+    #[Route(
+        name: 'app_application_index',
+        methods: ['GET'])
+    ]
+    #[IsGranted('ROLE_LIST_APPLICATION')]
+    public function index(ApplicationRepository $applicationRepository): Response
+    {
+        $application = $applicationRepository->findAll();
+
+        $applicationList = [];
+        foreach ($application as $key => $value) {
+            $applicationList[] = $value->toArray();
+        }
+
+        return $this->apiResponseFormatter
+            ->withData($applicationList)
+            ->response();
 
     }
 
-    #[Route(name: 'app_invoice', methods: ['GET'])]
-    #[IsGranted('ROLE_GET_INVOICE')]
-    public function index(): JsonResponse
+    #[Route(
+        name: 'app_application_new',
+        methods: ['POST'])
+    ]
+    #[IsGranted('ROLE_ADD_APPLICATION')]
+    public function new(Request $request, EntityManagerInterface $entityManager): Response
     {
-        $invoices = $this->invoiceRepository->findAll();
-
-        $transformedInvoices = [];
-        foreach ($invoices as $invoice) {
-            $transformedInvoices[] = $invoice->toArray();
+        $data = json_decode($request->getContent(), true);
+        if(!$data){
+            return $this->apiResponseFormatter
+                ->withMessage('invalid request')
+                ->withStatus(Response::HTTP_BAD_REQUEST)
+                ->response();
         }
 
+        $application = new Application();
+        $application->setName($data['name']);
+        $application->setDescription($data['description']);;
+        $entityManager->persist($application);
+        $entityManager->flush();
 
         return $this->apiResponseFormatter
-            ->withData($transformedInvoices)
+            ->withData($application->toArray())
+            ->withStatus(Response::HTTP_CREATED)
             ->response();
+
     }
 
     #[Route(
         '/{id}',
-        name: 'app_invoice_show',
+        name: 'app_application_show',
         methods: ['GET'])
     ]
-    #[IsGranted('ROLE_GET_INVOICE_BY_ID')]
-    public function getInvoiceById(int $id): JsonResponse
+    #[IsGranted('ROLE_SHOW_APPLICATION')]
+    public function show(Application $application): Response
     {
-        $invoice = $this->invoiceRepository->findOneBy(['id' => $id]);
-
-        return $this->apiResponseFormatter
-            ->withData($invoice->toArray())
-            ->response();
+        return $this->render('application/show.html.twig', [
+            'application' => $application,
+        ]);
     }
 
-    #[Route(name: 'app_invoice_new', methods: ['POST'])]
-    #[IsGranted('ROLE_CREATE_INVOICE')]
-    public function create(Request $request): JsonResponse
+    #[Route(
+        '/{id}/edit',
+        name: 'app_application_edit',
+        methods: ['GET', 'POST'])
+    ]
+    public function edit(Request $request, Application $application, EntityManagerInterface $entityManager): Response
     {
-        $invoiceInformation = json_decode($request->getContent(), true);
-        if(empty($invoiceInformation)){
+        $data = json_decode($request->getContent(), true);
+        if(!$data){
             return $this->apiResponseFormatter
                 ->withMessage('Invalid request')
                 ->withStatus(Response::HTTP_BAD_REQUEST)
                 ->response();
         }
 
-        $user = $this->UserRepository->findOneBy(['id' => $invoiceInformation['user_id']]);
-
-        $invoice = new Invoice();
-        $invoice->setCompanyName($invoiceInformation['name']);
-        $invoice->setCompanyStreet($invoiceInformation['street']);
-        $invoice->setCompanyStreetNumber($invoiceInformation['street_number']);
-        $invoice->setCompanyStreetFlatNumber($invoiceInformation['street_flat_number']);
-        $invoice->setCompanyCity($invoiceInformation['city']);
-        $invoice->setCompanyPostCode($invoiceInformation['post_code']);
-        $invoice->setTaxNumber($invoiceInformation['tax_number']);
-        $invoice->setPhone($invoiceInformation['phone']);
-        $invoice->setEmail($invoiceInformation['email']);
-        $invoice->setCreated(new \DateTime());
-        $invoice->setUpdated(new \DateTime());
-        $invoice->setUserId($user);
-
-        $this->entityManager->persist($invoice);
-        $this->entityManager->flush();
+        (empty($data['name'])) ? : $application->setName($data['name']);
+        (empty($data['description'])) ? :  $application->setDescription($data['description']);;
+        $entityManager->persist($application);
+        $entityManager->flush();
 
         return $this->apiResponseFormatter
-            ->withData($invoice->toArray())
+            ->withData($application->toArray())
+            ->withStatus(Response::HTTP_OK)
             ->response();
+    }
+
+    #[Route(
+        '/{id}',
+        name: 'app_application_delete',
+        methods: ['DELETE'])
+    ]
+    #[IsGranted('ROLE_DELETE_APPLICATION')]
+    public function delete(Request $request, Application $application, EntityManagerInterface $entityManager): Response
+    {
+        $request->get('id');
+
+        if(!$request->get('id') || (int)$request->get('id') !== $application->getId()){
+            return $this->apiResponseFormatter
+                ->withMessage('Invalid Rquest')
+                ->withStatus(Response::HTTP_BAD_REQUEST)
+                ->response();
+        }
+
+        $entityManager->remove($application);
+        $entityManager->flush();
+
+        return $this->apiResponseFormatter
+            ->withStatus(Response::HTTP_OK)
+            ->response();
+
     }
 }
