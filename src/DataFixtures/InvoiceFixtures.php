@@ -12,16 +12,16 @@ class InvoiceFixtures extends Fixture
     {
 
         $invoice = new Invoice();
-        $invoice->setCompanyName('My Comapny');
-        $invoice->setCompanyStreet('My Street');
-        $invoice->setCompanyStreetNumber('2');
-        $invoice->setCompanyStreetFlatNumber('22D');
+        $invoice->setCompanyName('Brosoft');
+        $invoice->setCompanyStreet('Piontkowska');
+        $invoice->setCompanyStreetNumber('21');
+        $invoice->setCompanyStreetFlatNumber('13D');
         $invoice->setCompanyCity('Poznań');
         $invoice->setCompanyPostCode('80-460');
         $invoice->setCreated(new \DateTime());
         $invoice->setUpdated(new \DateTime());
-        $invoice->setEmail('karol.bojski@cdv.pl');
-        $invoice->setPhone('123123123');
+        $invoice->setEmail('ator@cdv.pl');
+        $invoice->setPhone('123456789');
         $invoice->setTaxNumber('1234567890');
 
         $manager->persist($invoice);
